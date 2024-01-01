@@ -1,5 +1,5 @@
 /**
-* This example program is designed to illustrate the behavior of
+* This example program isns3 designed to illustrate the behavior of
 * rate-adaptive WiFi rate controls such as Minstrel.  Power-adaptive
 * rate controls can be illustrated also, but separate examples exist for
 * highlighting the power adaptation.
@@ -13,26 +13,7 @@
 * coordinate (5,0,0) (meters) and moves away on the x axis by 1 meter every
 * second.
 *
-* The output consists of:
-* - A plot of average throughput vs. distance.
-* - (if logging is enabled) the changes of rate to standard output.
-*
-* Example usage:
-* ./ns3 run "wifi-rate-adaptation-distance --standard=802.11a --staManager=ns3::MinstrelWifiManager
-* --apManager=ns3::MinstrelWifiManager --outputFileName=minstrel"
-*
-* Another example (moving towards the AP):
-* ./ns3 run "wifi-rate-adaptation-distance --standard=802.11a --staManager=ns3::MinstrelWifiManager
-* --apManager=ns3::MinstrelWifiManager --outputFileName=minstrel --stepsSize=1 --STA1_x=-200"
-*
-* Example for HT rates with SGI and channel width of 40MHz:
-* ./ns3 run "wifi-rate-adaptation-distance --staManager=ns3::MinstrelHtWifiManager
-* --apManager=ns3::MinstrelHtWifiManager --outputFileName=minstrelHt --shortGuardInterval=true
-* --channelWidth=40"
-*
-* To enable the log of rate changes:
-* export NS_LOG=RateAdaptationDistance=level_info
-*/
+ */
 
 #include "ns3/boolean.h"
 #include "ns3/command-line.h"
