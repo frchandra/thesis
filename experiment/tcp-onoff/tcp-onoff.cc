@@ -71,20 +71,20 @@ main (){
     NetDeviceContainer devices;
     devices = pointToPoint.Install (nodes);
 
-    QuicHelper stack;
-    stack.InstallQuic (nodes);
+    InternetStackHelper stack;
+    stack.Install(nodes);
 
     Ipv4AddressHelper address;
     address.SetBase ("10.1.1.0", "255.255.255.0");
 
     Ipv4InterfaceContainer interfaces = address.Assign (devices);
 
-    OnOffHelper onoff("ns3::QuicSocketFactory", InetSocketAddress(interfaces.GetAddress(1), 10000));
+    OnOffHelper onoff("ns3::TcpSocketFactory", InetSocketAddress(interfaces.GetAddress(1), 10000));
     onoff.SetConstantRate(DataRate("2kbps"));
     onoff.SetAttribute("PacketSize", UintegerValue(50));
     ApplicationContainer client1 = onoff.Install(nodes.Get(0));
 
-    PacketSinkHelper sink("ns3::QuicSocketFactory", InetSocketAddress(interfaces.GetAddress(1), 10000));
+    PacketSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(interfaces.GetAddress(1), 10000));
     ApplicationContainer server1 = sink.Install(nodes.Get(1));
 
 

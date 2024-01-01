@@ -84,10 +84,10 @@ void performance(FlowMonitorHelper &flowmon, Ptr<FlowMonitor> monitor ){
 }
 
 int main(){
-//    bool tracing = true;
+    //    bool tracing = true;
 //    uint32_t maxBytes = 0;
-//    uint32_t QUICFlows = 1;
-//    uint32_t maxPackets = 0;
+    //    uint32_t QUICFlows = 1;
+    //    uint32_t maxPackets = 0;
 
     NodeContainer nodes;
     nodes.Create (2);
@@ -119,8 +119,8 @@ int main(){
     AnimationInterface::SetConstantPosition(nodes.Get(1), 10, 50);
 
 
-    QuicHelper stack;
-    stack.InstallQuic (nodes);
+    InternetStackHelper stack;
+    stack.Install(nodes);
 
     Ipv4AddressHelper ipv4;
     ipv4.SetBase ("10.1.1.0", "255.255.255.0");
@@ -132,11 +132,11 @@ int main(){
 
     uint16_t port = 10000;
 
-    BulkSendHelper source  ("ns3::QuicSocketFactory",InetSocketAddress (i1.GetAddress (0), port));
+    BulkSendHelper source  ("ns3::TcpSocketFactory",InetSocketAddress (i1.GetAddress (0), port));
 //    source.SetAttribute ("MaxBytes", UintegerValue (maxBytes)); // Set the amount of data to send in bytes.  Zero is unlimited.
     sourceApps.Add (source.Install (nodes.Get (0)));
 
-    PacketSinkHelper sink ("ns3::QuicSocketFactory",InetSocketAddress (Ipv4Address::GetAny (), port));
+    PacketSinkHelper sink ("ns3::TcpSocketFactory",InetSocketAddress (Ipv4Address::GetAny (), port));
     sinkApps.Add (sink.Install (nodes.Get (1)));
 
     sinkApps.Start (Seconds (0.0));
