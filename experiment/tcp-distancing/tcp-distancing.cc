@@ -268,7 +268,7 @@ main()
        }
 
        WifiMacHelper wifiMac;
-
+xiaomi
        // Configure the STA node
        wifi.SetRemoteStationManager(staManager, "RtsCtsThreshold", UintegerValue(rtsThreshold));
 

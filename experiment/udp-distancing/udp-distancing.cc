@@ -135,40 +135,21 @@ NodeStatistics::GetDatafile()
    return m_output;
 }
 
-/**
-* Callback for 'Rate' trace source
-*
-* \param oldRate old MCS rate (bits/sec)
-* \param newRate new MCS rate (bits/sec)
-*/
-void
-RateCallback(uint64_t oldRate, uint64_t newRate)
-{
-   NS_LOG_INFO("Rate " << newRate / 1000000.0 << " Mbps");
-}
-
 int
 main(int argc, char* argv[]){
 
    LogComponentEnable("UdpDistancing", LOG_LEVEL_INFO);
 
-   uint32_t rtsThreshold = 65535;
-   std::string staManager = "ns3::MinstrelHtWifiManager";
-   std::string apManager = "ns3::MinstrelHtWifiManager";
    std::string standard = "802.11n-5GHz";
    std::string outputFileName = "udp-distancing";
-   uint32_t BeMaxAmpduSize = 65535;
-   bool shortGuardInterval = false;
-   uint32_t chWidth = 20;
    int ap1_x = 0;
    int ap1_y = 0;
-   int sta1_x = 5;
+   int sta1_x = 0;
    int sta1_y = 0;
-   int steps = 11;
-   int stepsSize = 20;
+   int steps = 20;
+   int stepsSize = 5;
    int stepsTime = 1;
    int simuTime = steps * stepsTime;
-
 
    if (standard != "802.11a" && standard != "802.11b" && standard != "802.11g" &&
        standard == "802.11n-2.4GHz" && standard != "802.11n-5GHz" && standard != "802.11ac")
@@ -197,20 +178,7 @@ main(int argc, char* argv[]){
    {
        frequencyBand = "BAND_5GHZ";
    }
-   wifiPhy.Set("ChannelSettings",
-               StringValue("{0, " + std::to_string(chWidth) + ", " + frequencyBand + ", 0}"));
 
-   // By default, the CCA sensitivity is -82 dBm, meaning if the RSS is
-   // below this value, the receiver will reject the Wi-Fi frame.
-   // However, we want to allow the rate adaptation to work down to low
-   // SNR values.  To allow this, we need to do three things:  1) disable
-   // the noise figure (set it to 0 dB) so that the noise level in 20 MHz
-   // is around -101 dBm, 2) lower the CCA sensitivity to a value that
-   // disables it (e.g. -110 dBm), and 3) disable the Wi-Fi preamble
-   // detection model.
-   wifiPhy.Set("CcaSensitivity", DoubleValue(-110));
-   wifiPhy.Set("RxNoiseFigure", DoubleValue(0));
-   wifiPhy.DisablePreambleDetectionModel();
 
    NetDeviceContainer wifiApDevices;
    NetDeviceContainer wifiStaDevices;
@@ -219,33 +187,7 @@ main(int argc, char* argv[]){
    WifiHelper wifi;
    if (standard == "802.11a" || standard == "802.11b" || standard == "802.11g")
    {
-       if (standard == "802.11a")
-       {
-           wifi.SetStandard(WIFI_STANDARD_80211a);
-       }
-       else if (standard == "802.11b")
-       {
-           wifi.SetStandard(WIFI_STANDARD_80211b);
-       }
-       else if (standard == "802.11g")
-       {
-           wifi.SetStandard(WIFI_STANDARD_80211g);
-       }
-       WifiMacHelper wifiMac;
 
-       // Configure the STA node
-       wifi.SetRemoteStationManager(staManager, "RtsCtsThreshold", UintegerValue(rtsThreshold));
-
-       Ssid ssid = Ssid("AP");
-       wifiMac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
-       wifiStaDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiStaNodes.Get(0)));
-
-       // Configure the AP node
-       wifi.SetRemoteStationManager(apManager, "RtsCtsThreshold", UintegerValue(rtsThreshold));
-
-       ssid = Ssid("AP");
-       wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
-       wifiApDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiApNodes.Get(0)));
    }
    else if (standard == "802.11n-2.4GHz" || standard == "802.11n-5GHz" || standard == "802.11ac")
    {
@@ -260,31 +202,17 @@ main(int argc, char* argv[]){
 
        WifiMacHelper wifiMac;
 
-       // Configure the STA node
-       wifi.SetRemoteStationManager(staManager, "RtsCtsThreshold", UintegerValue(rtsThreshold));
-
        Ssid ssid = Ssid("AP");
        wifiMac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
        wifiStaDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiStaNodes.Get(0)));
 
-       // Configure the AP node
-       wifi.SetRemoteStationManager(apManager, "RtsCtsThreshold", UintegerValue(rtsThreshold));
-
        ssid = Ssid("AP");
        wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
        wifiApDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiApNodes.Get(0)));
-
-       Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/BE_MaxAmpduSize",
-                   UintegerValue(BeMaxAmpduSize));
    }
 
    wifiDevices.Add(wifiStaDevices);
    wifiDevices.Add(wifiApDevices);
-
-   // Set guard interval
-   Config::Set(
-       "/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported",
-       BooleanValue(shortGuardInterval));
 
    // Configure the mobility.
    MobilityHelper mobility;
@@ -338,11 +266,6 @@ main(int argc, char* argv[]){
    // Register packet receptions to calculate throughput
    Config::Connect("/NodeList/1/ApplicationList/*/$ns3::PacketSink/Rx",
                    MakeCallback(&NodeStatistics::RxCallback, &atpCounter));
-
-   // Callbacks to print every change of rate
-   Config::ConnectWithoutContextFailSafe(
-       "/NodeList/0/DeviceList/*/$ns3::WifiNetDevice/RemoteStationManager/$" + apManager + "/Rate",
-       MakeCallback(RateCallback));
 
    Simulator::Stop(Seconds(simuTime));
    Simulator::Run();
