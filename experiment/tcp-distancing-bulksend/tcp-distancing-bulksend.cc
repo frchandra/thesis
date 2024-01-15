@@ -1,58 +1,21 @@
-/*
- * Copyright (c) 2014 Universidad de la República - Uruguay
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Author: Matías Richart <mrichart@fing.edu.uy>
- */
-
 /**
- * This example program is ns3 designed to illustrate the behavior of
- * rate-adaptive WiFi rate controls such as Minstrel.  Power-adaptive
- * rate controls can be illustrated also, but separate examples exist for
- * highlighting the power adaptation.
- *
- * This simulation consist of 2 nodes, one AP and one STA.
- * The AP generates UDP traffic with a CBR of 54 Mbps to the STA.
- * The AP can use any power and rate control mechanism and the STA uses
- * only Minstrel rate control.
- * The STA can be configured to move away from (or towards to) the AP.
- * By default, the AP is at coordinate (0,0,0) and the STA starts at
- * coordinate (5,0,0) (meters) and moves away on the x axis by 1 meter every
- * second.
- *
- * The output consists of:
- * - A plot of average throughput vs. distance.
- * - (if logging is enabled) the changes of rate to standard output.
- *
- * Example usage:
- * ./ns3 run "wifi-rate-adaptation-distance --standard=802.11a --staManager=ns3::MinstrelWifiManager
- * --apManager=ns3::MinstrelWifiManager --outputFileName=minstrel"
- *
- * Another example (moving towards the AP):
- * ./ns3 run "wifi-rate-adaptation-distance --standard=802.11a --staManager=ns3::MinstrelWifiManager
- * --apManager=ns3::MinstrelWifiManager --outputFileName=minstrel --stepsSize=1 --STA1_x=-200"
- *
- * Example for HT rates with SGI and channel width of 40MHz:
- * ./ns3 run "wifi-rate-adaptation-distance --staManager=ns3::MinstrelHtWifiManager
- * --apManager=ns3::MinstrelHtWifiManager --outputFileName=minstrelHt --shortGuardInterval=true
- * --channelWidth=40"
- *
- * To enable the log of rate changes:
- * export NS_LOG=RateAdaptationDistance=level_info
+* This example program isns3 designed to illustrate the behavior of
+* rate-adaptive WiFi rate controls such as Minstrel.  Power-adaptive
+* rate controls can be illustrated also, but separate examples exist for
+* highlighting the power adaptation.
+*
+* This simulation consist of 2 nodes, one AP and one STA.
+* The AP generates UDP traffic with a CBR of 54 Mbps to the STA.
+* The AP can use any power and rate control mechanism and the STA uses
+* only Minstrel rate control.
+* The STA can be configured to move away from (or towards to) the AP.
+* By default, the AP is at coordinate (0,0,0) and the STA starts at
+* coordinate (5,0,0) (meters) and moves away on the x axis by 1 meter every
+* second.
+*
  */
 
+#include "ns3/applications-module.h"
 #include "ns3/boolean.h"
 #include "ns3/command-line.h"
 #include "ns3/config.h"
@@ -73,7 +36,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("RateAdaptationDistance");
+NS_LOG_COMPONENT_DEFINE("TcpDistancingBulksend");
 
 /** Node statistics */
 class NodeStatistics
@@ -81,40 +44,40 @@ class NodeStatistics
   public:
     int stepItr = 0;
     /**
-     * Constructor
-     * \param aps AP devices
-     * \param stas STA devices
+    * Constructor
+    * \param aps AP devices
+    * \param stas STA devices
      */
     NodeStatistics(NetDeviceContainer aps, NetDeviceContainer stas);
 
     /**
-     * RX callback
-     * \param path path
-     * \param packet received packet
-     * \param from sender
+    * RX callback
+    * \param path path
+    * \param packet received packet
+    * \param from sender
      */
     void RxCallback(std::string path, Ptr<const Packet> packet, const Address& from);
     /**
-     * Set node position
-     * \param node the node
-     * \param position the position
+    * Set node position
+    * \param node the node
+    * \param position the position
      */
     void SetPosition(Ptr<Node> node, Vector position);
     /**
-     * Advance node position
-     * \param node the node
-     * \param stepsSize the size of a step
-     * \param stepsTime the time interval between steps
+    * Advance node position
+    * \param node the node
+    * \param stepsSize the size of a step
+    * \param stepsTime the time interval between steps
      */
     void AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime);
     /**
-     * Get node position
-     * \param node the node
-     * \return the position
+    * Get node position
+    * \param node the node
+    * \return the position
      */
     Vector GetPosition(Ptr<Node> node);
     /**
-     * \return the gnuplot 2d dataset
+    * \return the gnuplot 2d dataset
      */
     Gnuplot2dDataset GetDatafile();
 
@@ -155,6 +118,7 @@ NodeStatistics::AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime)
     stepItr++;
     Vector pos = GetPosition(node);
     double mbs = ((m_bytesTotal * 8.0) / (1000000 * stepsTime));
+    NS_LOG_INFO(" mbs : " << mbs);
     m_bytesTotal = 0;
     m_output.Add(pos.x, mbs);
     pos.x += stepsSize;
@@ -173,32 +137,27 @@ NodeStatistics::GetDatafile()
     return m_output;
 }
 
-/**
- * Callback for 'Rate' trace source
- *
- * \param oldRate old MCS rate (bits/sec)
- * \param newRate new MCS rate (bits/sec)
- */
-//void
-//RateCallback(uint64_t oldRate, uint64_t newRate)
-//{
-//    NS_LOG_INFO("Rate " << newRate / 1000000.0 << " Mbps");
-//}
-
 int
-main(int argc, char* argv[])
-{
-    LogComponentEnable("RateAdaptationDistance", LOG_LEVEL_INFO);
+main(){
 
-    std::string outputFileName = "minstrelHTSA";
+    LogComponentEnable("TcpDistancingBulksend", LOG_LEVEL_INFO);
+
+    std::string outputFileName = "tcp-distancing-bulksend";
+    std::string transport_prot = "TcpNewReno";
     int ap1_x = 0;
     int ap1_y = 0;
-    int sta1_x = 5;
+    int sta1_x = 0;
     int sta1_y = 0;
-    int steps = 10;
-    int stepsSize = 10;
+    int steps = 70;
+    int stepsSize = 1;
     int stepsTime = 1;
     int simuTime = steps * stepsTime;
+    int maxBytes = 0;
+
+    transport_prot = std::string ("ns3::") + transport_prot;
+    TypeId tcpTid;
+    NS_ABORT_MSG_UNLESS (TypeId::LookupByNameFailSafe (transport_prot, &tcpTid), "TypeId " << transport_prot << " not found");
+    Config::SetDefault ("ns3::QuicL4Protocol::SocketType", TypeIdValue (TypeId::LookupByName (transport_prot)));
 
     // Define the APs
     NodeContainer wifiApNodes;
@@ -213,8 +172,9 @@ main(int argc, char* argv[])
     YansWifiPhyHelper wifiPhy;
     YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default();
     wifiPhy.SetChannel(wifiChannel.Create());
-//    wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_5GHZ, 0}"));
+    //    wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_5GHZ, 0}"));
     wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_2_4GHZ, 0}"));
+
 
     NetDeviceContainer wifiApDevices;
     NetDeviceContainer wifiStaDevices;
@@ -266,14 +226,14 @@ main(int argc, char* argv[])
     uint16_t port = 9;
 
     // Configure the CBR generator
-    PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(sinkAddress, port));
+    PacketSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(sinkAddress, port));
     ApplicationContainer apps_sink = sink.Install(wifiStaNodes.Get(0));
 
-    OnOffHelper onoff("ns3::UdpSocketFactory", InetSocketAddress(sinkAddress, port));
-    onoff.SetConstantRate(DataRate("400Mb/s"), 1420);
-    onoff.SetAttribute("StartTime", TimeValue(Seconds(0.5)));
-    onoff.SetAttribute("StopTime", TimeValue(Seconds(simuTime)));
-    ApplicationContainer apps_source = onoff.Install(wifiApNodes.Get(0));
+    BulkSendHelper bulksend("ns3::TcpSocketFactory", InetSocketAddress(sinkAddress, port));
+    bulksend.SetAttribute("MaxBytes", UintegerValue (maxBytes));
+    bulksend.SetAttribute("StartTime", TimeValue(Seconds(0.5)));
+    bulksend.SetAttribute("StopTime", TimeValue(Seconds(simuTime)));
+    ApplicationContainer apps_source = bulksend.Install(wifiApNodes.Get(0));
 
     apps_sink.Start(Seconds(0.5));
     apps_sink.Stop(Seconds(simuTime));

@@ -35,7 +35,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("UdpDistancing");
+NS_LOG_COMPONENT_DEFINE("UdpDistancingOnoff");
 
 /** Node statistics */
 class NodeStatistics
@@ -117,6 +117,7 @@ NodeStatistics::AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime)
    stepItr++;
    Vector pos = GetPosition(node);
    double mbs = ((m_bytesTotal * 8.0) / (1000000 * stepsTime));
+   NS_LOG_INFO(" mbs : " << mbs);
    m_bytesTotal = 0;
    m_output.Add(pos.x, mbs);
    pos.x += stepsSize;
@@ -136,26 +137,19 @@ NodeStatistics::GetDatafile()
 }
 
 int
-main(int argc, char* argv[]){
+main(){
 
-   LogComponentEnable("UdpDistancing", LOG_LEVEL_INFO);
+   LogComponentEnable("UdpDistancingOnoff", LOG_LEVEL_INFO);
 
-   std::string standard = "802.11n-5GHz";
-   std::string outputFileName = "udp-distancing";
+   std::string outputFileName = "udp-distancing-onoff";
    int ap1_x = 0;
    int ap1_y = 0;
    int sta1_x = 0;
    int sta1_y = 0;
-   int steps = 20;
-   int stepsSize = 5;
+   int steps = 70;
+   int stepsSize = 1;
    int stepsTime = 1;
    int simuTime = steps * stepsTime;
-
-   if (standard != "802.11a" && standard != "802.11b" && standard != "802.11g" &&
-       standard == "802.11n-2.4GHz" && standard != "802.11n-5GHz" && standard != "802.11ac")
-   {
-       NS_FATAL_ERROR("Standard " << standard << " is not supported by this program");
-   }
 
    // Define the APs
    NodeContainer wifiApNodes;
@@ -165,51 +159,28 @@ main(int argc, char* argv[]){
    NodeContainer wifiStaNodes;
    wifiStaNodes.Create(1);
 
+   WifiHelper wifi;
+   wifi.SetStandard(WIFI_STANDARD_80211n);
    YansWifiPhyHelper wifiPhy;
    YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default();
    wifiPhy.SetChannel(wifiChannel.Create());
-   // Channel configuration via ChannelSettings attribute can be performed here
-   std::string frequencyBand;
-   if (standard == "802.11b" || standard == "802.11g" || standard == "802.11n-2.4GHz")
-   {
-       frequencyBand = "BAND_2_4GHZ";
-   }
-   else
-   {
-       frequencyBand = "BAND_5GHZ";
-   }
+   //    wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_5GHZ, 0}"));
+   wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_2_4GHZ, 0}"));
 
 
    NetDeviceContainer wifiApDevices;
    NetDeviceContainer wifiStaDevices;
    NetDeviceContainer wifiDevices;
 
-   WifiHelper wifi;
-   if (standard == "802.11a" || standard == "802.11b" || standard == "802.11g")
-   {
+   WifiMacHelper wifiMac;
 
-   }
-   else if (standard == "802.11n-2.4GHz" || standard == "802.11n-5GHz" || standard == "802.11ac")
-   {
-       if (standard == "802.11n-2.4GHz" || standard == "802.11n-5GHz")
-       {
-           wifi.SetStandard(WIFI_STANDARD_80211n);
-       }
-       else if (standard == "802.11ac")
-       {
-           wifi.SetStandard(WIFI_STANDARD_80211ac);
-       }
+   Ssid ssid = Ssid("AP");
+   wifiMac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+   wifiStaDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiStaNodes.Get(0)));
 
-       WifiMacHelper wifiMac;
-
-       Ssid ssid = Ssid("AP");
-       wifiMac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
-       wifiStaDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiStaNodes.Get(0)));
-
-       ssid = Ssid("AP");
-       wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
-       wifiApDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiApNodes.Get(0)));
-   }
+   ssid = Ssid("AP");
+   wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
+   wifiApDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiApNodes.Get(0)));
 
    wifiDevices.Add(wifiStaDevices);
    wifiDevices.Add(wifiApDevices);
@@ -263,7 +234,7 @@ main(int argc, char* argv[]){
    //-- Setup stats and data collection
    //--------------------------------------------
 
-   // Register packet receptions to calculate throughput
+   // Register packet receptions to calculate throughput0
    Config::Connect("/NodeList/1/ApplicationList/*/$ns3::PacketSink/Rx",
                    MakeCallback(&NodeStatistics::RxCallback, &atpCounter));
 
