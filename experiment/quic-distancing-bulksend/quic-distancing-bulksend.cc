@@ -148,11 +148,19 @@ main()
     int ap1_y = 0;
     int sta1_x = 0;
     int sta1_y = 0;
-    int steps = 70;
+    int steps = 60;
     int stepsSize = 1;
     int stepsTime = 1;
     int simuTime = steps * stepsTime;
     int maxBytes = 0;
+
+    // User may find it convenient to enable logging
+    Time::SetResolution (Time::NS);
+    LogComponentEnableAll (LOG_PREFIX_TIME);
+    LogComponentEnableAll (LOG_PREFIX_FUNC);
+    LogComponentEnableAll (LOG_PREFIX_NODE);
+    LogComponentEnable("BulkSendApplication", LOG_LEVEL_INFO);
+    LogComponentEnable("QuicL5Protocol", LOG_LEVEL_ALL);
 
     // 4 MB of TCP buffer
     Config::SetDefault ("ns3::QuicSocketBase::SocketRcvBufSize", UintegerValue (1 << 21));

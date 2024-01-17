@@ -47,7 +47,7 @@ class NodeStatistics
     * \param aps AP devices
     * \param stas STA devices
     */
-   NodeStatistics(NetDeviceContainer aps, NetDeviceContainer stas);
+   NodeStatistics();
 
    /**
     * RX callback
@@ -85,7 +85,7 @@ class NodeStatistics
    Gnuplot2dDataset m_output; //!< gnuplot 2d dataset
 };
 
-NodeStatistics::NodeStatistics(NetDeviceContainer aps, NetDeviceContainer stas)
+NodeStatistics::NodeStatistics()
 {
    m_bytesTotal = 0;
 }
@@ -93,7 +93,8 @@ NodeStatistics::NodeStatistics(NetDeviceContainer aps, NetDeviceContainer stas)
 void
 NodeStatistics::RxCallback(std::string path, Ptr<const Packet> packet, const Address& from)
 {
-   m_bytesTotal += packet->GetSize();
+    m_bytesTotal += packet->GetSize();
+//    NS_LOG_INFO("= PACKET RECIEVED; SIZE: " << m_bytesTotal << "; FROM: " << InetSocketAddress::ConvertFrom(from).GetIpv4() << " ==");
 }
 
 void
@@ -113,21 +114,22 @@ NodeStatistics::GetPosition(Ptr<Node> node)
 void
 NodeStatistics::AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime)
 {
-   NS_LOG_INFO("STEP #" << stepItr);
-   stepItr++;
-   Vector pos = GetPosition(node);
-   double mbs = ((m_bytesTotal * 8.0) / (1000000 * stepsTime));
-   NS_LOG_INFO(" mbs : " << mbs);
-   m_bytesTotal = 0;
-   m_output.Add(pos.x, mbs);
-   pos.x += stepsSize;
-   SetPosition(node, pos);
-   Simulator::Schedule(Seconds(stepsTime),
-                       &NodeStatistics::AdvancePosition,
-                       this,
-                       node,
-                       stepsSize,
-                       stepsTime);
+    NS_LOG_INFO("### ADVANCING: STEP " << stepItr << "; STA NODE_ID: " << std::to_string(node->GetId()) << " ###");
+    stepItr++;
+    Vector pos = GetPosition(node);
+    double mbs = ((m_bytesTotal * 8.0) / (1000000 * stepsTime));
+    NS_LOG_INFO(" MBS: " << mbs);
+    m_bytesTotal = 0;
+    m_output.Add(pos.x, mbs);
+    pos.x += stepsSize;
+    SetPosition(node, pos);
+    NS_LOG_INFO("NEW POSITION (" << std::to_string(pos.x) << ", " << std::to_string(pos.y) << ")");
+    Simulator::Schedule(Seconds(stepsTime),
+                        &NodeStatistics::AdvancePosition,
+                        this,
+                        node,
+                        stepsSize,
+                        stepsTime);
 }
 
 Gnuplot2dDataset
@@ -203,7 +205,7 @@ main()
    mobility.Install(wifiStaNodes.Get(0));
 
    // Statistics counter
-   NodeStatistics atpCounter = NodeStatistics(wifiApDevices, wifiStaDevices);
+   NodeStatistics atpCounter = NodeStatistics();
 
    // Move the STA by stepsSize meters every stepsTime seconds
    Simulator::Schedule(Seconds(0.5 + stepsTime),
@@ -241,7 +243,7 @@ main()
    //--------------------------------------------
 
    // Register packet receptions to calculate throughput
-   Config::Connect("/NodeList/1/ApplicationList/*/$ns3::PacketSink/Rx",
+   Config::Connect("/NodeList/*/ApplicationList/*/$ns3::PacketSink/Rx",
                    MakeCallback(&NodeStatistics::RxCallback, &atpCounter));
 
 

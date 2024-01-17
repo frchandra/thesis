@@ -70,6 +70,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/yans-wifi-channel.h"
 #include "ns3/yans-wifi-helper.h"
+#include "ns3/quic-module.h"
 
 using namespace ns3;
 
@@ -155,6 +156,7 @@ NodeStatistics::AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime)
     stepItr++;
     Vector pos = GetPosition(node);
     double mbs = ((m_bytesTotal * 8.0) / (1000000 * stepsTime));
+    NS_LOG_INFO(" mbs : " << mbs);
     m_bytesTotal = 0;
     m_output.Add(pos.x, mbs);
     pos.x += stepsSize;
@@ -259,6 +261,13 @@ main(int argc, char* argv[])
     InternetStackHelper stack;
     stack.Install(wifiApNodes);
     stack.Install(wifiStaNodes);
+//    QuicHelper stack;
+//    stack.InstallQuic(wifiApNodes);
+//    stack.InstallQuic(wifiStaNodes);
+//    Config::SetDefault ("ns3::QuicSocketBase::SocketRcvBufSize", UintegerValue (1 << 21));
+//    Config::SetDefault ("ns3::QuicSocketBase::SocketSndBufSize", UintegerValue (1 << 21));
+//    Config::SetDefault ("ns3::QuicStreamBase::StreamSndBufSize", UintegerValue (1 << 21));
+//    Config::SetDefault ("ns3::QuicStreamBase::StreamRcvBufSize", UintegerValue (1 << 21));
     Ipv4AddressHelper address;
     address.SetBase("10.1.1.0", "255.255.255.0");
     Ipv4InterfaceContainer i = address.Assign(wifiDevices);
@@ -267,9 +276,11 @@ main(int argc, char* argv[])
 
     // Configure the CBR generator
     PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(sinkAddress, port));
+//    PacketSinkHelper sink("ns3::QuicSocketFactory", InetSocketAddress(sinkAddress, port));
     ApplicationContainer apps_sink = sink.Install(wifiStaNodes.Get(0));
 
     OnOffHelper onoff("ns3::UdpSocketFactory", InetSocketAddress(sinkAddress, port));
+//    OnOffHelper onoff("ns3::QuicSocketFactory", InetSocketAddress(sinkAddress, port));
     onoff.SetConstantRate(DataRate("400Mb/s"), 1420);
     onoff.SetAttribute("StartTime", TimeValue(Seconds(0.5)));
     onoff.SetAttribute("StopTime", TimeValue(Seconds(simuTime)));

@@ -26,6 +26,7 @@
 #include "ns3/log.h"
 #include "ns3/mobility-helper.h"
 #include "ns3/mobility-model.h"
+#include "ns3/netanim-module.h"
 #include "ns3/on-off-helper.h"
 #include "ns3/packet-sink-helper.h"
 #include "ns3/ssid.h"
@@ -148,24 +149,25 @@ main(){
     int ap1_y = 0;
     int sta1_x = 0;
     int sta1_y = 0;
-    int steps = 70;
+    int steps = 5;
     int stepsSize = 1;
     int stepsTime = 1;
     int simuTime = steps * stepsTime;
     int maxBytes = 0;
 
-    transport_prot = std::string ("ns3::") + transport_prot;
-    TypeId tcpTid;
-    NS_ABORT_MSG_UNLESS (TypeId::LookupByNameFailSafe (transport_prot, &tcpTid), "TypeId " << transport_prot << " not found");
-    Config::SetDefault ("ns3::QuicL4Protocol::SocketType", TypeIdValue (TypeId::LookupByName (transport_prot)));
-
-    // Define the APs
     NodeContainer wifiApNodes;
     wifiApNodes.Create(1);
-
-    // Define the STAs
     NodeContainer wifiStaNodes;
     wifiStaNodes.Create(1);
+
+    MobilityHelper mobility;
+    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+    positionAlloc->Add(Vector(ap1_x, ap1_y, 0.0));
+    positionAlloc->Add(Vector(sta1_x, sta1_y, 0.0));
+    mobility.SetPositionAllocator(positionAlloc);
+    mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    mobility.Install(wifiApNodes.Get(0));
+    mobility.Install(wifiStaNodes.Get(0));
 
     WifiHelper wifi;
     wifi.SetStandard(WIFI_STANDARD_80211n);
@@ -175,76 +177,74 @@ main(){
     //    wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_5GHZ, 0}"));
     wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_2_4GHZ, 0}"));
 
-
     NetDeviceContainer wifiApDevices;
     NetDeviceContainer wifiStaDevices;
     NetDeviceContainer wifiDevices;
 
     WifiMacHelper wifiMac;
-
     Ssid ssid = Ssid("AP");
     wifiMac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
     wifiStaDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiStaNodes.Get(0)));
-
     ssid = Ssid("AP");
     wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
     wifiApDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiApNodes.Get(0)));
+    wifiDevices.Add(wifiStaDevices); //0
+    wifiDevices.Add(wifiApDevices); //1
 
-    wifiDevices.Add(wifiStaDevices);
-    wifiDevices.Add(wifiApDevices);
+    InternetStackHelper stack;
+    stack.Install(wifiApNodes);
+    stack.Install(wifiStaNodes);
+    Ipv4AddressHelper address;
+    address.SetBase("10.1.1.0", "255.255.255.0");
+    Ipv4InterfaceContainer itf = address.Assign(wifiDevices);
+    Ipv4Address sinkAddress = itf.GetAddress(0); //sta
+    uint16_t port = 9;
 
-    // Configure the mobility.
-    MobilityHelper mobility;
-    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
-    // Initial position of AP and STA
-    positionAlloc->Add(Vector(ap1_x, ap1_y, 0.0));
-    positionAlloc->Add(Vector(sta1_x, sta1_y, 0.0));
-    mobility.SetPositionAllocator(positionAlloc);
-    mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-    mobility.Install(wifiApNodes.Get(0));
-    mobility.Install(wifiStaNodes.Get(0));
+    transport_prot = std::string ("ns3::") + transport_prot;
+    TypeId tcpTid;
+    NS_ABORT_MSG_UNLESS (TypeId::LookupByNameFailSafe (transport_prot, &tcpTid), "TypeId " << transport_prot << " not found");
+    Config::SetDefault ("ns3::QuicL4Protocol::SocketType", TypeIdValue (TypeId::LookupByName (transport_prot)));
 
-    // Statistics counter
+    PacketSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(sinkAddress, port)); //at the sta
+    ApplicationContainer apps_sink = sink.Install(wifiStaNodes.Get(0));
+
+    BulkSendHelper bulksend("ns3::TcpSocketFactory", InetSocketAddress(sinkAddress /*dest address*/, port));
+    bulksend.SetAttribute("MaxBytes", UintegerValue (maxBytes));
+    bulksend.SetAttribute("StartTime", TimeValue(Seconds(0.5)));
+    bulksend.SetAttribute("StopTime", TimeValue(Seconds(simuTime)));
+    ApplicationContainer apps_source = bulksend.Install(wifiApNodes.Get(0)); //server
+
+    apps_sink.Start(Seconds(0.5));
+    apps_sink.Stop(Seconds(simuTime));
+
     NodeStatistics atpCounter = NodeStatistics(wifiApDevices, wifiStaDevices);
-
-    // Move the STA by stepsSize meters every stepsTime seconds
     Simulator::Schedule(Seconds(0.5 + stepsTime),
                         &NodeStatistics::AdvancePosition,
                         &atpCounter,
                         wifiStaNodes.Get(0),
                         stepsSize,
                         stepsTime);
-
-    // Configure the IP stack
-    InternetStackHelper stack;
-    stack.Install(wifiApNodes);
-    stack.Install(wifiStaNodes);
-    Ipv4AddressHelper address;
-    address.SetBase("10.1.1.0", "255.255.255.0");
-    Ipv4InterfaceContainer i = address.Assign(wifiDevices);
-    Ipv4Address sinkAddress = i.GetAddress(0);
-    uint16_t port = 9;
-
-    // Configure the CBR generator
-    PacketSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(sinkAddress, port));
-    ApplicationContainer apps_sink = sink.Install(wifiStaNodes.Get(0));
-
-    BulkSendHelper bulksend("ns3::TcpSocketFactory", InetSocketAddress(sinkAddress, port));
-    bulksend.SetAttribute("MaxBytes", UintegerValue (maxBytes));
-    bulksend.SetAttribute("StartTime", TimeValue(Seconds(0.5)));
-    bulksend.SetAttribute("StopTime", TimeValue(Seconds(simuTime)));
-    ApplicationContainer apps_source = bulksend.Install(wifiApNodes.Get(0));
-
-    apps_sink.Start(Seconds(0.5));
-    apps_sink.Stop(Seconds(simuTime));
-
-    //------------------------------------------------------------
-    //-- Setup stats and data collection
-    //--------------------------------------------
-
-    // Register packet receptions to calculate throughput
     Config::Connect("/NodeList/1/ApplicationList/*/$ns3::PacketSink/Rx",
                     MakeCallback(&NodeStatistics::RxCallback, &atpCounter));
+
+    AnimationInterface anim("wireless.xml");
+    for (uint32_t i = 0; i < wifiStaNodes.GetN(); ++i)
+    {
+        anim.UpdateNodeDescription(wifiStaNodes.Get(i), "STA"); // Optional
+        anim.UpdateNodeColor(wifiStaNodes.Get(i), 255, 0, 0);   // Optional
+    }
+    for (uint32_t i = 0; i < wifiApNodes.GetN(); ++i)
+    {
+        anim.UpdateNodeDescription(wifiApNodes.Get(i), "AP"); // Optional
+        anim.UpdateNodeColor(wifiApNodes.Get(i), 0, 255, 0);  // Optional
+    }
+    anim.EnablePacketMetadata(); // Optional
+    anim.EnableIpv4RouteTracking("routingtable-wireless.xml",
+                                 Seconds(0),
+                                 Seconds(5),
+                                 Seconds(0.25));         // Optional
+    anim.EnableWifiMacCounters(Seconds(0), Seconds(10)); // Optional
+    anim.EnableWifiPhyCounters(Seconds(0), Seconds(10)); // Optional
 
     Simulator::Stop(Seconds(simuTime));
     Simulator::Run();
@@ -256,6 +256,8 @@ main(){
     gnuplot.SetTitle("Throughput (AP to STA) vs time");
     gnuplot.AddDataset(atpCounter.GetDatafile());
     gnuplot.GenerateOutput(outfile);
+
+    wifiPhy.EnablePcap("pcapfile", wifiStaDevices.Get(0), true, true);
 
     Simulator::Destroy();
 
