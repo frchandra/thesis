@@ -119,8 +119,8 @@ main(int argc, char* argv[])
     clientApps.Stop(Seconds(10.0));
 
 
-    FlowMonitorHelper flowmon;
-    Ptr<FlowMonitor> monitor = flowmon.InstallAll();
+    FlowMonitorHelper flowmon = FlowMonitorHelper();
+    Ptr<FlowMonitor> monitor = flowmon.Install(NodeContainer(nodes.Get(0), nodes.Get(1)));
 
     Simulator::Stop(Seconds(10.0));
     Simulator::Run();
