@@ -16,10 +16,12 @@
  */
 
 #include <ctime>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 
+#include "ns3/applications-module.h"
 #include "ns3/boolean.h"
 #include "ns3/config.h"
 #include "ns3/core-module.h"
@@ -45,7 +47,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("FairnessDistancingOnoff");
+NS_LOG_COMPONENT_DEFINE("BaselineTcpBulksend");
 
 /** Node statistics */
 class NodeStatistics
@@ -111,7 +113,7 @@ void NodeStatistics::Metrics(int distance){
     std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats();
     for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator iter = stats.begin(); iter != stats.end(); ++iter){
         Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow(iter->first);
-        //        if(i==0)NS_LOG_UNCOND(" Flow :" << this->flowName << "-client");else NS_LOG_UNCOND(" Flow :" << this->flowName << "-server");
+//        if(i==0)NS_LOG_UNCOND(" Flow :" << this->flowName << "-client");else NS_LOG_UNCOND(" Flow :" << this->flowName << "-server");
         NS_LOG_UNCOND(" dist\tkbps\tjitter_mics\t\tplr\tpdr\tdelay_mics\t\tpkt_sent\t\tpkt_rcv\t\tpkt_loss\t\tsource\t\tdest");
         NS_LOG_UNCOND(" " << distance << "\t\t"
                           << iter->second.rxBytes * 8.0/(iter->second.timeLastRxPacket.GetSeconds() - iter->second.timeFirstTxPacket.GetSeconds())/1024 << "\t"
@@ -156,12 +158,12 @@ void NodeStatistics::Metrics(int distance){
 }
 
 int main(){
-    LogComponentEnable("FairnessDistancingOnoff", LOG_LEVEL_INFO);
+    LogComponentEnable("BaselineTcpBulksend", LOG_LEVEL_INFO);
 
     std::string transport_prot = "ns3::TcpNewReno";
-    int nQuic = 1;
+    int nQuic = 0;
     int nTcp = 1;
-    int steps = 3;
+    int steps = 60;
     int stepsSize = 1; //1m
     int stepsTime = 1; //1s
     int simuTime = steps * stepsTime + stepsTime;
@@ -170,8 +172,7 @@ int main(){
     std::string p2pApGwDelay = "2ms";
     std::string p2pGwServerDataRate = "100Mbps";
     std::string p2pGwServerDelay = "2ms";
-    std::string onOffDataRate = "100Mb/s";
-    int onOffPktSize = 1420;
+    int bsMaxByte = 0;
     double errorRate = 0.0000;
 
     std::time_t unixNow = std::time(0);
@@ -182,16 +183,16 @@ int main(){
     std::filesystem::create_directory(directoryPath);
 
     // User may find it convenient to enable logging
-//    Time::SetResolution (Time::NS);
-//    LogComponentEnableAll (LOG_PREFIX_TIME);
-//    LogComponentEnableAll (LOG_PREFIX_FUNC);
-//    LogComponentEnableAll (LOG_PREFIX_NODE);
-//    LogComponentEnable("QuicVariantsComparison", LOG_LEVEL_ALL);
-//    LogComponentEnable("BulkSendApplication", LOG_LEVEL_INFO);
-//    LogComponentEnable("PfifoFastQueueDisc", LOG_LEVEL_ALL);
-//    LogComponentEnable ("QuicSocketBase", LOG_LEVEL_ALL);
-//    LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
-//    LogComponentEnable("QuicL5Protocol", LOG_LEVEL_ALL);
+    //    Time::SetResolution (Time::NS);
+    //    LogComponentEnableAll (LOG_PREFIX_TIME);
+    //    LogComponentEnableAll (LOG_PREFIX_FUNC);
+    //    LogComponentEnableAll (LOG_PREFIX_NODE);
+    //    LogComponentEnable("QuicVariantsComparison", LOG_LEVEL_ALL);
+    //    LogComponentEnable("BulkSendApplication", LOG_LEVEL_INFO);
+    //    LogComponentEnable("PfifoFastQueueDisc", LOG_LEVEL_ALL);
+    //    LogComponentEnable ("QuicSocketBase", LOG_LEVEL_ALL);
+    //    LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
+    //    LogComponentEnable("QuicL5Protocol", LOG_LEVEL_ALL);
 
     NodeContainer wifiTcpStaNodes;  wifiTcpStaNodes.Create( nTcp);
     NodeContainer wifiQuicStaNodes; wifiQuicStaNodes.Create( nQuic);
@@ -213,7 +214,8 @@ int main(){
     for(int i = 0; i < nTcp + nQuic; i++){
         positionAlloc->Add(Vector(1, 10, 0.0)); //STA
     }
-    mobility.SetPositionAllocator(positionAlloc);
+    mobility.SetPositionAllocator(positionAlloc);//    std::string onOffDataRate = "100Mb/s";
+//    int onOffPktSize = 1420;
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(wifiApNodes);
     for(int i = 0; i < nTcp + nQuic; i++){
@@ -225,10 +227,11 @@ int main(){
     YansWifiPhyHelper wifiPhy;
     YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default();
     wifiPhy.SetChannel(wifiChannel.Create());
-//    wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_5GHZ, 0}"));
+    //    wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_5GHZ, 0}"));
     wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_2_4GHZ, 0}"));
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
     wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel");
+//    wifiChannel.AddPropagationLoss("ns3::LogDistancePropagationLossModel");
 
     WifiMacHelper wifiMac;
     Ssid ssid = Ssid("AP");
@@ -284,7 +287,7 @@ int main(){
     Config::SetDefault("ns3::TcpSocket::InitialCwnd", UintegerValue(1));
     Config::SetDefault("ns3::TcpL4Protocol::RecoveryType",TypeIdValue(TypeId::LookupByName("ns3::TcpClassicRecovery")));
     Config::SetDefault("ns3::QuicL4Protocol::SocketType", TypeIdValue (TypeId::LookupByName (transport_prot)));
-//    Config::SetDefault ("ns3::QuicL4Protocol::SocketType", TypeIdValue(QuicCongestionOps::GetTypeId()));
+    //    Config::SetDefault ("ns3::QuicL4Protocol::SocketType", TypeIdValue(QuicCongestionOps::GetTypeId()));
 
 
     Config::SetDefault ("ns3::QuicSocketBase::SocketRcvBufSize", UintegerValue (1 << 21));
@@ -297,22 +300,22 @@ int main(){
     Config::SetDefault("ns3::TcpSocketBase::Sack", BooleanValue(true));
 
     //TCP onoff client
-    OnOffHelper onoff("ns3::TcpSocketFactory", InetSocketAddress(gwTcpIf.GetAddress(1)/*server address*/, port));
-    onoff.SetConstantRate(DataRate(onOffDataRate), onOffPktSize);
+    BulkSendHelper bs("ns3::TcpSocketFactory", InetSocketAddress(gwTcpIf.GetAddress(1)/*server address*/, port));
+    bs.SetAttribute("MaxBytes", UintegerValue(bsMaxByte));
     ApplicationContainer tcpClient;
     for(int i = 0; i < nTcp; i++){
-        tcpClient.Add(onoff.Install(wifiTcpStaNodes.Get(i)));
+        tcpClient.Add(bs.Install(wifiTcpStaNodes.Get(i)));
     }
     //TCP onoff server
     PacketSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(gwTcpIf.GetAddress(1)/*server address*/, port));
     ApplicationContainer tcpServer = sink.Install(tcpServerNode.Get(0));
 
     //QUIC onoff server
-    OnOffHelper quicOnoff("ns3::QuicSocketFactory", InetSocketAddress(gwQuicIf.GetAddress(1)/*server address*/, port));
-    quicOnoff.SetConstantRate(DataRate(onOffDataRate), onOffPktSize);
+    BulkSendHelper quicBs("ns3::QuicSocketFactory", InetSocketAddress(gwQuicIf.GetAddress(1)/*server address*/, port));
+    quicBs.SetAttribute("MaxBytes", UintegerValue(bsMaxByte));
     ApplicationContainer quicClient;
     for(int i = 0; i < nQuic; i++){
-        quicClient.Add(quicOnoff.Install(wifiQuicStaNodes.Get(i)));
+        quicClient.Add(quicBs.Install(wifiQuicStaNodes.Get(i)));
     }
     //QUIC onoff server
     PacketSinkHelper quicSink("ns3::QuicSocketFactory", InetSocketAddress(gwQuicIf.GetAddress(1)/*server address*/, port));

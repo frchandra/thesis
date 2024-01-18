@@ -53,7 +53,7 @@ void performance(FlowMonitorHelper &flowmon, Ptr<FlowMonitor> monitor ){
         NS_LOG_UNCOND("Lost Packets =" <<iter->second.txPackets-iter->second.rxPackets);
         NS_LOG_UNCOND("Packet delivery ratio =" <<iter->second.rxPackets*100/iter->second.txPackets << "%");
         NS_LOG_UNCOND("Packet loss ratio =" << (iter->second.txPackets-iter->second.rxPackets)*100/iter->second.txPackets << "%");
-        NS_LOG_UNCOND("Delay =" <<iter->second.delaySum);
+        NS_LOG_UNCOND("Delay =" <<iter->second.delaySum.GetNanoSeconds());
         NS_LOG_UNCOND("Jitter =" <<iter->second.jitterSum);
         NS_LOG_UNCOND("Throughput =" <<iter->second.rxBytes * 8.0/(iter->second.timeLastRxPacket.GetSeconds()-iter->second.timeFirstTxPacket.GetSeconds())/1024<<"Kbps");
         SentPackets = SentPackets +(iter->second.txPackets);

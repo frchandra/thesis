@@ -45,7 +45,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("FairnessDistancingOnoff");
+NS_LOG_COMPONENT_DEFINE("BaselineUdpOnoff");
 
 /** Node statistics */
 class NodeStatistics
@@ -156,21 +156,24 @@ void NodeStatistics::Metrics(int distance){
 }
 
 int main(){
-    LogComponentEnable("FairnessDistancingOnoff", LOG_LEVEL_INFO);
+    LogComponentEnable("BaselineUdpOnoff", LOG_LEVEL_INFO);
 
     std::string transport_prot = "ns3::TcpNewReno";
-    int nQuic = 1;
-    int nTcp = 1;
-    int steps = 3;
+    int nQuic = 0;
+    int nTcp = 0;
+    int nUdp = 1;
+    int steps = 60;
     int stepsSize = 1; //1m
     int stepsTime = 1; //1s
     int simuTime = steps * stepsTime + stepsTime;
-    uint16_t port = 443;
+    uint16_t port = 9;
     std::string p2pApGwDataRate = "100Mbps";
     std::string p2pApGwDelay = "2ms";
     std::string p2pGwServerDataRate = "100Mbps";
     std::string p2pGwServerDelay = "2ms";
     std::string onOffDataRate = "100Mb/s";
+    std::string ofOnTime = "1";
+    std::string ofOffTime = "0";
     int onOffPktSize = 1420;
     double errorRate = 0.0000;
 
@@ -182,19 +185,20 @@ int main(){
     std::filesystem::create_directory(directoryPath);
 
     // User may find it convenient to enable logging
-//    Time::SetResolution (Time::NS);
-//    LogComponentEnableAll (LOG_PREFIX_TIME);
-//    LogComponentEnableAll (LOG_PREFIX_FUNC);
-//    LogComponentEnableAll (LOG_PREFIX_NODE);
-//    LogComponentEnable("QuicVariantsComparison", LOG_LEVEL_ALL);
-//    LogComponentEnable("BulkSendApplication", LOG_LEVEL_INFO);
-//    LogComponentEnable("PfifoFastQueueDisc", LOG_LEVEL_ALL);
-//    LogComponentEnable ("QuicSocketBase", LOG_LEVEL_ALL);
-//    LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
-//    LogComponentEnable("QuicL5Protocol", LOG_LEVEL_ALL);
+    //    Time::SetResolution (Time::NS);
+    //    LogComponentEnableAll (LOG_PREFIX_TIME);
+    //    LogComponentEnableAll (LOG_PREFIX_FUNC);
+    //    LogComponentEnableAll (LOG_PREFIX_NODE);
+    //    LogComponentEnable("QuicVariantsComparison", LOG_LEVEL_ALL);
+    //    LogComponentEnable("BulkSendApplication", LOG_LEVEL_INFO);
+    //    LogComponentEnable("PfifoFastQueueDisc", LOG_LEVEL_ALL);
+    //    LogComponentEnable ("QuicSocketBase", LOG_LEVEL_ALL);
+    //    LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
+    //    LogComponentEnable("QuicL5Protocol", LOG_LEVEL_ALL);
 
     NodeContainer wifiTcpStaNodes;  wifiTcpStaNodes.Create( nTcp);
     NodeContainer wifiQuicStaNodes; wifiQuicStaNodes.Create( nQuic);
+    NodeContainer wifiUdpStaNodes; wifiUdpStaNodes.Create( nUdp);
     NodeContainer wifiStaNodes;
     for (int i = 0; i < nTcp; i++){
         wifiStaNodes.Add(wifiTcpStaNodes.Get(i));
@@ -202,21 +206,25 @@ int main(){
     for (int i = 0; i < nQuic; i++){
         wifiStaNodes.Add(wifiQuicStaNodes.Get(i));
     }
+    for (int i = 0; i < nUdp; i++){
+        wifiStaNodes.Add(wifiUdpStaNodes.Get(i));
+    }
     NodeContainer wifiApNodes;      wifiApNodes.Create(1);
     NodeContainer gwServerNode;     gwServerNode.Create(1);
     NodeContainer tcpServerNode;    tcpServerNode.Create(1);
     NodeContainer quicServerNode;   quicServerNode.Create(1);
+    NodeContainer udpServerNode;   udpServerNode.Create(1);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
     positionAlloc->Add(Vector(0, 10, 0.0));  //AP
-    for(int i = 0; i < nTcp + nQuic; i++){
+    for(int i = 0; i < nTcp + nQuic + nUdp; i++){
         positionAlloc->Add(Vector(1, 10, 0.0)); //STA
     }
     mobility.SetPositionAllocator(positionAlloc);
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(wifiApNodes);
-    for(int i = 0; i < nTcp + nQuic; i++){
+    for(int i = 0; i < nTcp + nQuic + nUdp ; i++){
         mobility.Install(wifiStaNodes.Get(i));
     }
 
@@ -225,7 +233,7 @@ int main(){
     YansWifiPhyHelper wifiPhy;
     YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default();
     wifiPhy.SetChannel(wifiChannel.Create());
-//    wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_5GHZ, 0}"));
+    //    wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_5GHZ, 0}"));
     wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_2_4GHZ, 0}"));
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
     wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel");
@@ -234,7 +242,7 @@ int main(){
     Ssid ssid = Ssid("AP");
     wifiMac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));//STA
     NetDeviceContainer wifiStaDevices;
-    for(int i = 0; i < nTcp + nQuic; i++){
+    for(int i = 0; i < nTcp + nQuic + nUdp; i++){
         wifiStaDevices.Add(wifi.Install(wifiPhy, wifiMac, wifiStaNodes.Get(i)));
     }
     wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));//AP
@@ -249,6 +257,7 @@ int main(){
     p2pGwServer.SetChannelAttribute("Delay", StringValue(p2pGwServerDelay));
     NetDeviceContainer gwToTcp = p2pGwServer.Install(gwServerNode.Get(0), tcpServerNode.Get(0));
     NetDeviceContainer gwToQuic = p2pGwServer.Install(gwServerNode.Get(0), quicServerNode.Get(0));
+    NetDeviceContainer gwToUdp = p2pGwServer.Install(gwServerNode.Get(0), udpServerNode.Get(0));
 
     Ptr<RateErrorModel> em = CreateObject<RateErrorModel>();
     em->SetAttribute("ErrorRate", DoubleValue(errorRate));
@@ -260,9 +269,11 @@ int main(){
 
     InternetStackHelper stack;
     stack.Install(wifiTcpStaNodes);
+    stack.Install(wifiUdpStaNodes);
     stack.Install(wifiApNodes);
     stack.Install(gwServerNode);
     stack.Install(tcpServerNode);
+    stack.Install(udpServerNode);
     QuicHelper quic;
     quic.InstallQuic(wifiQuicStaNodes);
     quic.InstallQuic(quicServerNode);
@@ -275,8 +286,10 @@ int main(){
     Ipv4InterfaceContainer apGwIf = address.Assign(apToGw);
     address.SetBase("10.2.3.0", "255.255.255.0"); //GW to TCP
     Ipv4InterfaceContainer gwTcpIf = address.Assign(gwToTcp);
-    address.SetBase("10.2.4.0", "255.255.255.0"); //GW to TCP
+    address.SetBase("10.2.4.0", "255.255.255.0"); //GW to QUIC
     Ipv4InterfaceContainer gwQuicIf = address.Assign(gwToQuic);
+    address.SetBase("10.2.5.0", "255.255.255.0"); //GW to UDP
+    Ipv4InterfaceContainer gwUdpIf = address.Assign(gwToUdp);
 
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
@@ -284,7 +297,7 @@ int main(){
     Config::SetDefault("ns3::TcpSocket::InitialCwnd", UintegerValue(1));
     Config::SetDefault("ns3::TcpL4Protocol::RecoveryType",TypeIdValue(TypeId::LookupByName("ns3::TcpClassicRecovery")));
     Config::SetDefault("ns3::QuicL4Protocol::SocketType", TypeIdValue (TypeId::LookupByName (transport_prot)));
-//    Config::SetDefault ("ns3::QuicL4Protocol::SocketType", TypeIdValue(QuicCongestionOps::GetTypeId()));
+    //    Config::SetDefault ("ns3::QuicL4Protocol::SocketType", TypeIdValue(QuicCongestionOps::GetTypeId()));
 
 
     Config::SetDefault ("ns3::QuicSocketBase::SocketRcvBufSize", UintegerValue (1 << 21));
@@ -296,27 +309,37 @@ int main(){
     Config::SetDefault("ns3::TcpSocket::SndBufSize", UintegerValue(1 << 21));
     Config::SetDefault("ns3::TcpSocketBase::Sack", BooleanValue(true));
 
-    //TCP onoff client
+    //TCP onoff client - server
     OnOffHelper onoff("ns3::TcpSocketFactory", InetSocketAddress(gwTcpIf.GetAddress(1)/*server address*/, port));
     onoff.SetConstantRate(DataRate(onOffDataRate), onOffPktSize);
     ApplicationContainer tcpClient;
     for(int i = 0; i < nTcp; i++){
         tcpClient.Add(onoff.Install(wifiTcpStaNodes.Get(i)));
-    }
-    //TCP onoff server
+    } //server
     PacketSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(gwTcpIf.GetAddress(1)/*server address*/, port));
     ApplicationContainer tcpServer = sink.Install(tcpServerNode.Get(0));
 
-    //QUIC onoff server
+    //QUIC onoff client - server
     OnOffHelper quicOnoff("ns3::QuicSocketFactory", InetSocketAddress(gwQuicIf.GetAddress(1)/*server address*/, port));
     quicOnoff.SetConstantRate(DataRate(onOffDataRate), onOffPktSize);
     ApplicationContainer quicClient;
     for(int i = 0; i < nQuic; i++){
         quicClient.Add(quicOnoff.Install(wifiQuicStaNodes.Get(i)));
-    }
-    //QUIC onoff server
+    } //server
     PacketSinkHelper quicSink("ns3::QuicSocketFactory", InetSocketAddress(gwQuicIf.GetAddress(1)/*server address*/, port));
     ApplicationContainer quicServer = quicSink.Install(quicServerNode.Get(0));
+
+    //UDP onoff client - server
+    OnOffHelper udpOnoff("ns3::UdpSocketFactory", InetSocketAddress(gwUdpIf.GetAddress(1)/*server address*/, port));
+    udpOnoff.SetConstantRate(DataRate(onOffDataRate), onOffPktSize);
+    onoff.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant="+ ofOnTime +"]"));
+    onoff.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant="+ ofOffTime +"]"));
+    ApplicationContainer udpClient;
+    for(int i = 0; i < nUdp; i++){
+        udpClient.Add(udpOnoff.Install(wifiUdpStaNodes.Get(i)));
+    } //server
+    PacketSinkHelper udpSink("ns3::UdpSocketFactory", InetSocketAddress(gwUdpIf.GetAddress(1)/*server address*/, port));
+    ApplicationContainer udpServer = udpSink.Install(udpServerNode.Get(0));
 
     if(nTcp > 0){
         tcpServer.Start(Seconds(0.5));
@@ -329,6 +352,12 @@ int main(){
         quicClient.Start(Seconds(0.5));
         quicServer.Stop(Seconds(simuTime));
         quicClient.Stop(Seconds(simuTime));
+    }
+    if(nUdp > 0){
+        udpServer.Start(Seconds(0.5));
+        udpClient.Start(Seconds(0.5));
+        udpServer.Stop(Seconds(simuTime));
+        udpClient.Stop(Seconds(simuTime));
     }
 
     std::vector<NodeStatistics*> tcpStats;
@@ -354,6 +383,20 @@ int main(){
                             &NodeStatistics::AdvancePosition,
                             quicStats.at(i),
                             wifiQuicStaNodes.Get(i),
+                            stepsSize,
+                            stepsTime);
+    }
+
+    std::vector<NodeStatistics*> udpStats;
+    for(int i = 0; i < nUdp; i++){
+        NodeStatistics* nodeStat = new NodeStatistics(
+            NodeContainer(wifiUdpStaNodes.Get(i), udpServerNode.Get(0)),
+            "./" + folderName +  "/" + "udp-flow"+std::to_string(i));
+        udpStats.push_back(nodeStat);
+        Simulator::Schedule(Seconds(0.5 + stepsTime),
+                            &NodeStatistics::AdvancePosition,
+                            udpStats.at(i),
+                            wifiUdpStaNodes.Get(i),
                             stepsSize,
                             stepsTime);
     }

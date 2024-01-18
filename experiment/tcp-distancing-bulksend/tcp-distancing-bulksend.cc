@@ -161,7 +161,8 @@ main(){
     wifiStaNodes.Create(1);
 
     MobilityHelper mobility;
-    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+    Ptr<ListPositionAllocator> positionAlloc = CreFairnessDistancingOnoff
+FairnessDistancingOnoffateObject<ListPositionAllocator>();
     positionAlloc->Add(Vector(ap1_x, ap1_y, 0.0));
     positionAlloc->Add(Vector(sta1_x, sta1_y, 0.0));
     mobility.SetPositionAllocator(positionAlloc);
