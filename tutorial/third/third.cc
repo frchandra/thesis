@@ -42,8 +42,8 @@ int
 main(int argc, char* argv[])
 {
     bool verbose = true;
-    uint32_t nCsma = 3;
-    uint32_t nWifi = 3;
+    uint32_t nCsma = 1;
+    uint32_t nWifi = 1;
     bool tracing = false;
 
     CommandLine cmd(__FILE__);

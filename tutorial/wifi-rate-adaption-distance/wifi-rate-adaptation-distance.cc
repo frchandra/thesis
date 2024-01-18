@@ -77,81 +77,40 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("RateAdaptationDistance");
 
 /** Node statistics */
-class NodeStatistics
-{
+class NodeStatistics{
   public:
     int stepItr = 0;
-    /**
-     * Constructor
-     * \param aps AP devices
-     * \param stas STA devices
-     */
     NodeStatistics(NetDeviceContainer aps, NetDeviceContainer stas);
-
-    /**
-     * RX callback
-     * \param path path
-     * \param packet received packet
-     * \param from sender
-     */
     void RxCallback(std::string path, Ptr<const Packet> packet, const Address& from);
-    /**
-     * Set node position
-     * \param node the node
-     * \param position the position
-     */
     void SetPosition(Ptr<Node> node, Vector position);
-    /**
-     * Advance node position
-     * \param node the node
-     * \param stepsSize the size of a step
-     * \param stepsTime the time interval between steps
-     */
     void AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime);
-    /**
-     * Get node position
-     * \param node the node
-     * \return the position
-     */
     Vector GetPosition(Ptr<Node> node);
-    /**
-     * \return the gnuplot 2d dataset
-     */
     Gnuplot2dDataset GetDatafile();
-
+    void MonitorSnifferRxCallback(std::string context, Ptr< const Packet > packet, uint16_t channelFreqMhz, WifiTxVector txVector, MpduInfo aMpdu, SignalNoiseDbm signalNoise, uint16_t staId);
   private:
     uint32_t m_bytesTotal;     //!< total bytes
     Gnuplot2dDataset m_output; //!< gnuplot 2d dataset
 };
 
-NodeStatistics::NodeStatistics(NetDeviceContainer aps, NetDeviceContainer stas)
-{
+NodeStatistics::NodeStatistics(NetDeviceContainer aps, NetDeviceContainer stas){
     m_bytesTotal = 0;
 }
 
-void
-NodeStatistics::RxCallback(std::string path, Ptr<const Packet> packet, const Address& from)
-{
+void NodeStatistics::RxCallback(std::string path, Ptr<const Packet> packet, const Address& from){
     m_bytesTotal += packet->GetSize();
 }
 
-void
-NodeStatistics::SetPosition(Ptr<Node> node, Vector position)
-{
+void NodeStatistics::SetPosition(Ptr<Node> node, Vector position){
     Ptr<MobilityModel> mobility = node->GetObject<MobilityModel>();
     mobility->SetPosition(position);
 }
 
-Vector
-NodeStatistics::GetPosition(Ptr<Node> node)
-{
+Vector NodeStatistics::GetPosition(Ptr<Node> node){
     Ptr<MobilityModel> mobility = node->GetObject<MobilityModel>();
     return mobility->GetPosition();
 }
 
-void
-NodeStatistics::AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime)
-{
+void NodeStatistics::AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime){
     NS_LOG_INFO("STEP #" << stepItr);
     stepItr++;
     Vector pos = GetPosition(node);
@@ -169,9 +128,11 @@ NodeStatistics::AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime)
                         stepsTime);
 }
 
-Gnuplot2dDataset
-NodeStatistics::GetDatafile()
-{
+void NodeStatistics::MonitorSnifferRxCallback(std::string context, Ptr<const ns3::Packet> packet, uint16_t channelFreqMhz, ns3::WifiTxVector txVector, ns3::MpduInfo aMpdu, ns3::SignalNoiseDbm signalNoise, uint16_t staId){
+    NS_LOG_UNCOND("signalNoise.noise: " << signalNoise.noise << "signalNoise.signal" << signalNoise.signal);
+}
+
+Gnuplot2dDataset NodeStatistics::GetDatafile(){
     return m_output;
 }
 
@@ -261,13 +222,7 @@ main(int argc, char* argv[])
     InternetStackHelper stack;
     stack.Install(wifiApNodes);
     stack.Install(wifiStaNodes);
-//    QuicHelper stack;
-//    stack.InstallQuic(wifiApNodes);
-//    stack.InstallQuic(wifiStaNodes);
-//    Config::SetDefault ("ns3::QuicSocketBase::SocketRcvBufSize", UintegerValue (1 << 21));
-//    Config::SetDefault ("ns3::QuicSocketBase::SocketSndBufSize", UintegerValue (1 << 21));
-//    Config::SetDefault ("ns3::QuicStreamBase::StreamSndBufSize", UintegerValue (1 << 21));
-//    Config::SetDefault ("ns3::QuicStreamBase::StreamRcvBufSize", UintegerValue (1 << 21));
+
     Ipv4AddressHelper address;
     address.SetBase("10.1.1.0", "255.255.255.0");
     Ipv4InterfaceContainer i = address.Assign(wifiDevices);
@@ -276,11 +231,9 @@ main(int argc, char* argv[])
 
     // Configure the CBR generator
     PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(sinkAddress, port));
-//    PacketSinkHelper sink("ns3::QuicSocketFactory", InetSocketAddress(sinkAddress, port));
     ApplicationContainer apps_sink = sink.Install(wifiStaNodes.Get(0));
 
     OnOffHelper onoff("ns3::UdpSocketFactory", InetSocketAddress(sinkAddress, port));
-//    OnOffHelper onoff("ns3::QuicSocketFactory", InetSocketAddress(sinkAddress, port));
     onoff.SetConstantRate(DataRate("400Mb/s"), 1420);
     onoff.SetAttribute("StartTime", TimeValue(Seconds(0.5)));
     onoff.SetAttribute("StopTime", TimeValue(Seconds(simuTime)));
@@ -296,6 +249,9 @@ main(int argc, char* argv[])
     // Register packet receptions to calculate throughput
     Config::Connect("/NodeList/1/ApplicationList/*/$ns3::PacketSink/Rx",
                     MakeCallback(&NodeStatistics::RxCallback, &atpCounter));
+
+    Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
+                    MakeCallback(&NodeStatistics::MonitorSnifferRxCallback, &atpCounter));
 
     Simulator::Stop(Seconds(simuTime));
     Simulator::Run();

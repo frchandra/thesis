@@ -113,7 +113,7 @@ void NodeStatistics::Metrics(int distance){
     std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats();
     for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator iter = stats.begin(); iter != stats.end(); ++iter){
         Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow(iter->first);
-//        if(i==0)NS_LOG_UNCOND(" Flow :" << this->flowName << "-client");else NS_LOG_UNCOND(" Flow :" << this->flowName << "-server");
+        //        if(i==0)NS_LOG_UNCOND(" Flow :" << this->flowName << "-client");else NS_LOG_UNCOND(" Flow :" << this->flowName << "-server");
         NS_LOG_UNCOND(" dist\tkbps\tjitter_mics\t\tplr\tpdr\tdelay_mics\t\tpkt_sent\t\tpkt_rcv\t\tpkt_loss\t\tsource\t\tdest");
         NS_LOG_UNCOND(" " << distance << "\t\t"
                           << iter->second.rxBytes * 8.0/(iter->second.timeLastRxPacket.GetSeconds() - iter->second.timeFirstTxPacket.GetSeconds())/1024 << "\t"
@@ -129,26 +129,26 @@ void NodeStatistics::Metrics(int distance){
         if(i==0){
             *clientMetrics->GetStream() << distance << ","
                                         << iter->second.rxBytes * 8.0/(iter->second.timeLastRxPacket.GetSeconds()-iter->second.timeFirstTxPacket.GetSeconds())/1024 << ","
-                                        << iter->second.jitterSum << ","
-                                        << (iter->second.txPackets-iter->second.rxPackets)*100/iter->second.txPackets << ","
+                                        << iter->second.jitterSum.GetMicroSeconds() << ","
+                                        << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets)*100/iter->second.txPackets << ","
                                         << iter->second.rxPackets*100/iter->second.txPackets << ","
-                                        << iter->second.delaySum << ","
+                                        << iter->second.delaySum.GetMicroSeconds() << ","
                                         << iter->second.txPackets << ","
                                         << iter->second.rxPackets << ","
-                                        << iter->second.txPackets-iter->second.rxPackets << ","
+                                        << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets) << ","
                                         << t.sourceAddress  << ","
                                         << t.destinationAddress << std::endl;
         }
         else{
             *serverMetrics->GetStream() << distance << ","
                                         << iter->second.rxBytes * 8.0/(iter->second.timeLastRxPacket.GetSeconds()-iter->second.timeFirstTxPacket.GetSeconds())/1024 << ","
-                                        << iter->second.jitterSum << ","
-                                        << (iter->second.txPackets-iter->second.rxPackets)*100/iter->second.txPackets << ","
+                                        << iter->second.jitterSum.GetMicroSeconds() << ","
+                                        << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets)*100/iter->second.txPackets << ","
                                         << iter->second.rxPackets*100/iter->second.txPackets << ","
-                                        << iter->second.delaySum << ","
+                                        << iter->second.delaySum.GetMicroSeconds() << ","
                                         << iter->second.txPackets << ","
                                         << iter->second.rxPackets << ","
-                                        << iter->second.txPackets-iter->second.rxPackets << ","
+                                        << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets) << ","
                                         << t.sourceAddress  << ","
                                         << t.destinationAddress << std::endl;
         }
