@@ -1,20 +1,3 @@
-/**
-* This example program isns3 designed to illustrate the behavior of
-* rate-adaptive WiFi rate controls such as Minstrel.  Power-adaptive
-* rate controls can be illustrated also, but separate examples exist for
-* highlighting the power adaptation.
-*
-* This simulation consist of 2 nodes, one AP and one STA.
-* The AP generates UDP traffic with a CBR of 54 Mbps to the STA.
-* The AP can use any power and rate control mechanism and the STA uses
-* only Minstrel rate control.
-* The STA can be configured to move away from (or towards to) the AP.
-* By default, the AP is at coordinate (0,0,0) and the STA starts at
-* coordinate (5,0,0) (meters) and moves away on the x axis by 1 meter every
-* second.
-*
- */
-
 #include <ctime>
 #include <cstdlib>
 #include <filesystem>
@@ -50,8 +33,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("BaselineTcpBulksend");
 
 /** Node statistics */
-class NodeStatistics
-{
+class NodeStatistics{
   public:
     std::string flowName;
     int stepItr = 0;

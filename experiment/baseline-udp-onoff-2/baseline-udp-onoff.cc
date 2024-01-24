@@ -156,14 +156,14 @@ int main(){
 
     std::string transport_prot = "ns3::TcpNewReno";
     int nQuic = 1;
-    int nTcp = 0;
+    int nTcp = 1;
     int nUdp = 0;
     int steps = 5;
     int initPos = 1;
     int stepsSize = 1; //1m
     int stepsTime = 1; //1s
     int simuTime = steps * stepsTime + stepsTime;
-    uint16_t port = 443;
+    uint16_t port = 9;
     std::string propagationDelay = "ns3::ConstantSpeedPropagationDelayModel";
     std::string propagationLoss = "ns3::FriisPropagationLossModel";
     std::string p2pApGwDataRate = "1Gbps";
@@ -329,7 +329,7 @@ int main(){
     ApplicationContainer quicServer;
     if(isUpstream == true){
         OnOffHelper quicOnoffUp("ns3::QuicSocketFactory", InetSocketAddress(gwQuicIf.GetAddress(1)/*target: server address*/, port));
-        quicOnoffUp.SetConstantRate(DataRate(onOffDownRate), onOffPktSize);
+        quicOnoffUp.SetConstantRate(DataRate(onOffUpRate), onOffPktSize);
         for(int i = 0; i < nQuic; i++){
             quicClient.Add(quicOnoffUp.Install(wifiQuicStaNodes.Get(i)));
         }
@@ -338,10 +338,10 @@ int main(){
     }
     if (isDownstream == true) {
         for(int i = 0; i < nQuic; i++){
-            OnOffHelper quicOnoffDown("ns3::QuicSocketFactory", InetSocketAddress(staIf.GetAddress(i)/*target: client address*/, port));
+            OnOffHelper quicOnoffDown("ns3::QuicSocketFactory", InetSocketAddress(staIf.GetAddress(nTcp + i)/*target: client address*/, port));
             quicOnoffDown.SetConstantRate(DataRate(onOffDownRate), onOffPktSize);
             quicServer.Add(quicOnoffDown.Install(quicServerNode.Get(0)));
-            PacketSinkHelper quicSinkDown("ns3::QuicSocketFactory", InetSocketAddress(staIf.GetAddress(i)/*target: client address*/, port));
+            PacketSinkHelper quicSinkDown("ns3::QuicSocketFactory", InetSocketAddress(staIf.GetAddress(nTcp + i)/*target: client address*/, port));
             quicClient = quicSinkDown.Install(wifiQuicStaNodes.Get(i));
         }
     }
@@ -351,7 +351,7 @@ int main(){
     ApplicationContainer udpServer;
     if(isUpstream == true){
         OnOffHelper udpOnoffUp("ns3::UdpSocketFactory", InetSocketAddress(gwUdpIf.GetAddress(1)/*target: server address*/, port));
-        udpOnoffUp.SetConstantRate(DataRate(onOffDownRate), onOffPktSize);
+        udpOnoffUp.SetConstantRate(DataRate(onOffUpRate), onOffPktSize);
         for(int i = 0; i < nUdp; i++){
             udpClient.Add(udpOnoffUp.Install(wifiUdpStaNodes.Get(i)));
         }
@@ -362,10 +362,10 @@ int main(){
     }
     if (isDownstream == true) {
         for(int i = 0; i < nUdp; i++){
-            OnOffHelper udpOnoffDown("ns3::UdpSocketFactory", InetSocketAddress(staIf.GetAddress(i)/*target: client address*/, port));
+            OnOffHelper udpOnoffDown("ns3::UdpSocketFactory", InetSocketAddress(staIf.GetAddress(nTcp + nQuic + i)/*target: client address*/, port));
             udpOnoffDown.SetConstantRate(DataRate(onOffDownRate), onOffPktSize);
             udpServer.Add(udpOnoffDown.Install(udpServerNode.Get(0)));
-            PacketSinkHelper udpSinkDown("ns3::UdpSocketFactory", InetSocketAddress(staIf.GetAddress(i)/*target: client address*/, port));
+            PacketSinkHelper udpSinkDown("ns3::UdpSocketFactory", InetSocketAddress(staIf.GetAddress(nTcp + nQuic + i)/*target: client address*/, port));
             udpClient = udpSinkDown.Install(wifiUdpStaNodes.Get(i));
             udpOnoffDown.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant="+ ofOnTime +"]"));
             udpOnoffDown.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant="+ ofOffTime +"]"));

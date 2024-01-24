@@ -167,8 +167,8 @@ int main(){
     LogComponentEnable("BaselineUdpOnoff", LOG_LEVEL_INFO);
 
     std::string transport_prot = "ns3::TcpNewReno";
-    int nQuic = 0;
-    int nTcp = 3;
+    int nQuic = 1;
+    int nTcp = 1;
     int nUdp = 0;
     int steps = 60;
     int stepsSize = 1; //1m
