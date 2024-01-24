@@ -16,7 +16,6 @@
  */
 
 #include <ctime>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -47,7 +46,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("BaselineTcpBulksend");
+NS_LOG_COMPONENT_DEFINE("BaselineQuicBsRtt");
 
 /** Node statistics */
 class NodeStatistics
@@ -170,11 +169,11 @@ void NodeStatistics::Metrics(int distance){
 }
 
 int main(){
-    LogComponentEnable("BaselineTcpBulksend", LOG_LEVEL_INFO);
+    LogComponentEnable("BaselineQuicBsRtt", LOG_LEVEL_INFO);
 
     std::string transport_prot = "ns3::TcpNewReno";
-    int nQuic = 0;
-    int nTcp = 2;
+    int nQuic = 1;
+    int nTcp = 0;
     int steps = 60;
     int stepsSize = 1; //1m
     int stepsTime = 1; //1s
@@ -185,6 +184,8 @@ int main(){
     std::string p2pGwServerDataRate = "100Mbps";
     std::string p2pGwServerDelay = "2ms";
     int bsMaxByte = 0;
+    //    std::string onOffDataRate = "100Mb/s";
+    //    int onOffPktSize = 1420;
     double errorRate = 0.0000;
 
     std::time_t unixNow = std::time(0);
@@ -226,8 +227,7 @@ int main(){
     for(int i = 0; i < nTcp + nQuic; i++){
         positionAlloc->Add(Vector(1, 10, 0.0)); //STA
     }
-    mobility.SetPositionAllocator(positionAlloc);//    std::string onOffDataRate = "100Mb/s";
-//    int onOffPktSize = 1420;
+    mobility.SetPositionAllocator(positionAlloc);
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(wifiApNodes);
     for(int i = 0; i < nTcp + nQuic; i++){
@@ -243,7 +243,6 @@ int main(){
     wifiPhy.Set("ChannelSettings", StringValue("{0, 0, BAND_2_4GHZ, 0}"));
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
     wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel");
-//    wifiChannel.AddPropagationLoss("ns3::LogDistancePropagationLossModel");
 
     WifiMacHelper wifiMac;
     Ssid ssid = Ssid("AP");
@@ -306,6 +305,8 @@ int main(){
     Config::SetDefault ("ns3::QuicSocketBase::SocketSndBufSize", UintegerValue (1 << 21));
     Config::SetDefault ("ns3::QuicStreamBase::StreamSndBufSize", UintegerValue (1 << 21));
     Config::SetDefault ("ns3::QuicStreamBase::StreamRcvBufSize", UintegerValue (1 << 21));
+    Config::SetDefault ("ns3::QuicL4Protocol::0RTT-Handshake", BooleanValue(true));
+    Config::SetDefault ("ns3::QuicSocketBase::InitialVersion", UintegerValue (QUIC_VERSION_NS3_IMPL));
 
     Config::SetDefault("ns3::TcpSocket::RcvBufSize", UintegerValue(1 << 21));
     Config::SetDefault("ns3::TcpSocket::SndBufSize", UintegerValue(1 << 21));

@@ -54,18 +54,20 @@ class NodeStatistics
   public:
     std::string flowName;
     int stepItr = 0;
+    FlowMonitorHelper fh;
+    Ptr<FlowMonitor> monitor;
+    AsciiTraceHelper asciiHelper;
+    NodeContainer nodes;
+    Ptr<OutputStreamWrapper> serverMetrics;
+    Ptr<OutputStreamWrapper> clientMetrics;
+    ns3::SignalNoiseDbm signalNoise;
+
     NodeStatistics(NodeContainer nodes, std::string flowName);
     void SetPosition(Ptr<Node> node, Vector position);
     void AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime);
     Vector GetPosition(Ptr<Node> node);
-    Gnuplot2dDataset GetDatafile();
-    FlowMonitorHelper fh;
-    Ptr<FlowMonitor> monitor;
     void Metrics(int distance);
-    Ptr<OutputStreamWrapper> serverMetrics;
-    Ptr<OutputStreamWrapper> clientMetrics;
-    AsciiTraceHelper asciiHelper;
-    NodeContainer nodes;
+    void MonitorSnifferRxCallback(std::string context, Ptr< const Packet > packet, uint16_t channelFreqMhz, WifiTxVector txVector, MpduInfo aMpdu, SignalNoiseDbm signalNoise, uint16_t staId);
 };
 
 NodeStatistics::NodeStatistics(NodeContainer nodes, std::string flowName): fh(), asciiHelper(){
@@ -75,10 +77,10 @@ NodeStatistics::NodeStatistics(NodeContainer nodes, std::string flowName): fh(),
     this->flowName = flowName;
     std::ostringstream client; client << flowName << "-client.csv";
     clientMetrics = asciiHelper.CreateFileStream(client.str().c_str());
-    *clientMetrics->GetStream() << "dist,kbps,jitter_mics,plr,pdr,delay_mics,pkt_sent,pkt_rcv,pkt_loss,source,dest" << std::endl;
+    *clientMetrics->GetStream() << "dist,kbps,jitter_mils,plr,pdr,delay_mils,pkt_sent,pkt_rcv,pkt_loss,signal,noise,source,dest" << std::endl;
     std::ostringstream server; server << flowName << "-server.csv";
     serverMetrics = asciiHelper.CreateFileStream(server.str().c_str());
-    *serverMetrics->GetStream() << "dist,kbps,jitter_mics,plr,pdr,delay_mics,pkt_sent,pkt_rcv,pkt_loss,source,dest" << std::endl;
+    *serverMetrics->GetStream() << "dist,kbps,jitter_mils,plr,pdr,delay_mils,pkt_sent,pkt_rcv,pkt_loss,signal,noise,source,dest" << std::endl;
 }
 
 void NodeStatistics::SetPosition(Ptr<Node> node, Vector position){
@@ -89,6 +91,10 @@ void NodeStatistics::SetPosition(Ptr<Node> node, Vector position){
 Vector NodeStatistics::GetPosition(Ptr<Node> node){
     Ptr<MobilityModel> mobility = node->GetObject<MobilityModel>();
     return mobility->GetPosition();
+}
+
+void NodeStatistics::MonitorSnifferRxCallback(std::string context, Ptr<const ns3::Packet> packet, uint16_t channelFreqMhz, ns3::WifiTxVector txVector, ns3::MpduInfo aMpdu, ns3::SignalNoiseDbm signalNoise, uint16_t staId){
+    this->signalNoise = signalNoise;
 }
 
 void NodeStatistics::AdvancePosition(Ptr<Node> node, int stepsSize, int stepsTime){
@@ -113,41 +119,47 @@ void NodeStatistics::Metrics(int distance){
     for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator iter = stats.begin(); iter != stats.end(); ++iter){
         Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow(iter->first);
         //        if(i==0)NS_LOG_UNCOND(" Flow :" << this->flowName << "-client");else NS_LOG_UNCOND(" Flow :" << this->flowName << "-server");
-        NS_LOG_UNCOND(" dist\tkbps\tjitter_mics\t\tplr\tpdr\tdelay_mics\t\tpkt_sent\t\tpkt_rcv\t\tpkt_loss\t\tsource\t\tdest");
+        NS_LOG_UNCOND(" dist\tkbps\tjitter_mils\t\tplr\tpdr\tdelay_mils\t\tpkt_sent\t\tpkt_rcv\t\tpkt_loss\t\tsignal\t\tnoise\t\tsource\t\tdest");
         NS_LOG_UNCOND(" " << distance << "\t\t"
                           << iter->second.rxBytes * 8.0/(iter->second.timeLastRxPacket.GetSeconds() - iter->second.timeFirstTxPacket.GetSeconds())/1024 << "\t"
-                          << iter->second.jitterSum.GetMicroSeconds() << "\t\t\t" //jiter_mics
-                          << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets)*100/iter->second.txPackets << "\t" //packet loss ratio
-                          << iter->second.rxPackets*100/iter->second.txPackets << "\t" //packet delivery ratio
-                          << iter->second.delaySum.GetMicroSeconds() << "\t\t" //delay_mics
+                          << iter->second.jitterSum.GetMilliSeconds() << "\t\t\t\t" //jitter_mils
+                          << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets)*100/(iter->second.txPackets + 0.01) << "\t" //packet loss ratio
+                          << iter->second.rxPackets*100/(iter->second.txPackets + 0.01) << "\t" //packet delivery ratio
+                          << iter->second.lastDelay.GetMilliSeconds() << "\t\t\t\t" //delay_mils
                           << iter->second.txPackets << "\t\t\t" //packet sent
                           << iter->second.rxPackets << "\t\t" //packet receive
-                          << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets) << "\t\t\t" // packet loss
+                          << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets) << "\t\t" // packet loss
+                          << this->signalNoise.signal << "\t\t"
+                          << this->signalNoise.noise << "\t\t"
                           << t.sourceAddress  << "\t\t" //source
                           << t.destinationAddress ); //dest
         if(i==0){
             *clientMetrics->GetStream() << distance << ","
                                         << iter->second.rxBytes * 8.0/(iter->second.timeLastRxPacket.GetSeconds()-iter->second.timeFirstTxPacket.GetSeconds())/1024 << ","
-                                        << iter->second.jitterSum.GetMicroSeconds() << ","
-                                        << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets)*100/iter->second.txPackets << ","
-                                        << iter->second.rxPackets*100/iter->second.txPackets << ","
-                                        << iter->second.delaySum.GetMicroSeconds() << ","
+                                        << iter->second.jitterSum.GetMilliSeconds() << ","
+                                        << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets)*100/(iter->second.txPackets + 0.01) << ","
+                                        << iter->second.rxPackets*100/(iter->second.txPackets + 0.01) << ","
+                                        << iter->second.lastDelay.GetMilliSeconds() << ","
                                         << iter->second.txPackets << ","
                                         << iter->second.rxPackets << ","
                                         << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets) << ","
+                                        << this->signalNoise.signal << ","
+                                        << this->signalNoise.noise << ","
                                         << t.sourceAddress  << ","
                                         << t.destinationAddress << std::endl;
         }
         else{
             *serverMetrics->GetStream() << distance << ","
                                         << iter->second.rxBytes * 8.0/(iter->second.timeLastRxPacket.GetSeconds()-iter->second.timeFirstTxPacket.GetSeconds())/1024 << ","
-                                        << iter->second.jitterSum.GetMicroSeconds() << ","
-                                        << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets)*100/iter->second.txPackets << ","
-                                        << iter->second.rxPackets*100/iter->second.txPackets << ","
-                                        << iter->second.delaySum.GetMicroSeconds() << ","
+                                        << iter->second.jitterSum.GetMilliSeconds() << ","
+                                        << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets)*100/(iter->second.txPackets + 0.01) << ","
+                                        << iter->second.rxPackets*100/(iter->second.txPackets + 0.01) << ","
+                                        << iter->second.lastDelay.GetMilliSeconds() << ","
                                         << iter->second.txPackets << ","
                                         << iter->second.rxPackets << ","
                                         << std::abs((int)iter->second.txPackets - (int)iter->second.rxPackets) << ","
+                                        << this->signalNoise.signal << ","
+                                        << this->signalNoise.noise << ","
                                         << t.sourceAddress  << ","
                                         << t.destinationAddress << std::endl;
         }
@@ -345,6 +357,9 @@ int main(){
                             wifiTcpStaNodes.Get(i),
                             stepsSize,
                             stepsTime);
+        int nodeNum = i;
+        Config::Connect("/NodeList/" + std::to_string(nodeNum) + "/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
+                        MakeCallback(&NodeStatistics::MonitorSnifferRxCallback, nodeStat));
     }
     std::vector<NodeStatistics*> quicStats;
     for(int i = 0; i < nQuic; i++){
@@ -358,6 +373,9 @@ int main(){
                             wifiQuicStaNodes.Get(i),
                             stepsSize,
                             stepsTime);
+        int nodeNum = nTcp + i;
+        Config::Connect("/NodeList/" + std::to_string(nodeNum) + "/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
+                        MakeCallback(&NodeStatistics::MonitorSnifferRxCallback, nodeStat));
     }
 
     p2pApGw.EnablePcap( "./" + folderName + "/" + "apToGw", apToGw);
