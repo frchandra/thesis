@@ -159,7 +159,7 @@ int main(){
     int stepsSize = 1; //1m
     int stepsTime = 1; //1s
     int simuTime = steps * stepsTime + stepsTime;
-    uint16_t port = 9;
+    uint16_t port = 443;
     std::string propagationDelay = "ns3::ConstantSpeedPropagationDelayModel";
     std::string propagationLoss = "ns3::FriisPropagationLossModel";
     std::string p2pApGwDataRate = "1Gbps";
@@ -195,7 +195,6 @@ int main(){
     NodeContainer gwServerNode;     gwServerNode.Create(1);
     NodeContainer tcpServerNode;    tcpServerNode.Create(1);
     NodeContainer quicServerNode;   quicServerNode.Create(1);
-    NodeContainer udpServerNode;   udpServerNode.Create(1);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
@@ -239,7 +238,6 @@ int main(){
     p2pGwServer.SetChannelAttribute("Delay", StringValue(p2pGwServerDelay));
     NetDeviceContainer gwToTcp = p2pGwServer.Install(gwServerNode.Get(0), tcpServerNode.Get(0));
     NetDeviceContainer gwToQuic = p2pGwServer.Install(gwServerNode.Get(0), quicServerNode.Get(0));
-    NetDeviceContainer gwToUdp = p2pGwServer.Install(gwServerNode.Get(0), udpServerNode.Get(0));
 
     Ptr<RateErrorModel> em = CreateObject<RateErrorModel>();
     em->SetAttribute("ErrorRate", DoubleValue(errorRate));
@@ -251,11 +249,9 @@ int main(){
 
     InternetStackHelper stack;
     stack.Install(wifiTcpStaNodes);
-    stack.Install(wifiUdpStaNodes);
     stack.Install(wifiApNodes);
     stack.Install(gwServerNode);
     stack.Install(tcpServerNode);
-    stack.Install(udpServerNode);
     QuicHelper quic;
     quic.InstallQuic(wifiQuicStaNodes);
     quic.InstallQuic(quicServerNode);
@@ -270,8 +266,6 @@ int main(){
     Ipv4InterfaceContainer gwTcpIf = address.Assign(gwToTcp);
     address.SetBase("10.2.4.0", "255.255.255.0"); //GW to QUIC
     Ipv4InterfaceContainer gwQuicIf = address.Assign(gwToQuic);
-    address.SetBase("10.2.5.0", "255.255.255.0"); //GW to UDP
-    Ipv4InterfaceContainer gwUdpIf = address.Assign(gwToUdp);
 
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 

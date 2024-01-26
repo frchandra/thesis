@@ -156,12 +156,13 @@ int main(){
     std::string transport_prot = "ns3::TcpNewReno";
     int nQuic = 1;
     int nTcp = 1;
+    int nUdp = 1;
     int steps = 5;
     int initPos = 1;
     int stepsSize = 1; //1m
     int stepsTime = 1; //1s
     int simuTime = steps * stepsTime + stepsTime;
-    uint16_t port = 9;
+    uint16_t port = 443;
     std::string propagationDelay = "ns3::ConstantSpeedPropagationDelayModel";
     std::string propagationLoss = "ns3::FriisPropagationLossModel";
     std::string p2pApGwDataRate = "1Gbps";
@@ -190,6 +191,7 @@ int main(){
 
     NodeContainer wifiTcpStaNodes;  wifiTcpStaNodes.Create( nTcp);
     NodeContainer wifiQuicStaNodes; wifiQuicStaNodes.Create( nQuic);
+    NodeContainer wifiUdpStaNodes; wifiUdpStaNodes.Create( nUdp);
     NodeContainer wifiStaNodes;
     for (int i = 0; i < nTcp; i++){
         wifiStaNodes.Add(wifiTcpStaNodes.Get(i));
