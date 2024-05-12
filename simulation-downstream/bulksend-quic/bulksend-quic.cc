@@ -155,7 +155,7 @@ int main(){
     int nQuic = 1;
     int nTcp = 0;
     int steps = 60;
-    int initPos = 30;
+    int initPos = 1;
     int stepsSize = 1; //1m
     int stepsTime = 1; //1s
     int simuTime = steps * stepsTime + stepsTime;
@@ -163,9 +163,9 @@ int main(){
     std::string propagationDelay = "ns3::ConstantSpeedPropagationDelayModel";
     std::string propagationLoss = "ns3::FriisPropagationLossModel";
     std::string p2pApGwDataRate = "100Mbps";
-    std::string p2pApGwDelay = "2ms";
+    std::string p2pApGwDelay = "0ms";
     std::string p2pGwServerDataRate = "100Mbps";
-    std::string p2pGwServerDelay = "2ms";
+    std::string p2pGwServerDelay = "0ms";
 
     bool isUpstream = false;
     bool isDownstream = true;

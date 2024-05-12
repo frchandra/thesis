@@ -163,9 +163,9 @@ int main(){
     std::string propagationDelay = "ns3::ConstantSpeedPropagationDelayModel";
     std::string propagationLoss = "ns3::FriisPropagationLossModel";
     std::string p2pApGwDataRate = "1Gbps";
-    std::string p2pApGwDelay = "2ms";
+    std::string p2pApGwDelay = "0ms";
     std::string p2pGwServerDataRate = "1Gbps";
-    std::string p2pGwServerDelay = "2ms";
+    std::string p2pGwServerDelay = "0ms";
 
     bool isUpstream = false;
     bool isDownstream = true;

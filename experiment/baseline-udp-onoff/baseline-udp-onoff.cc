@@ -167,14 +167,14 @@ int main(){
     LogComponentEnable("BaselineUdpOnoff", LOG_LEVEL_INFO);
 
     std::string transport_prot = "ns3::TcpNewReno";
-    int nQuic = 1;
+    int nQuic = 0;
     int nTcp = 1;
-    int nUdp = 0;
-    int steps = 60;
+    int nUdp = 1;
+    int steps = 30;
     int stepsSize = 1; //1m
     int stepsTime = 1; //1s
     int simuTime = steps * stepsTime + stepsTime;
-    uint16_t port = 9;
+    uint16_t port = 443;
     std::string p2pApGwDataRate = "100Mbps";
     std::string p2pApGwDelay = "2ms";
     std::string p2pGwServerDataRate = "100Mbps";
