@@ -40,11 +40,11 @@ class NodeStatistics{
     Ptr<FlowMonitor> monitor;
     AsciiTraceHelper asciiHelper;
     NodeContainer nodes;
-    uint32_t cwndAccumulate;
+    uint32_t cwnd1;
 
     NodeStatistics(NodeContainer nodes, std::string flowName, bool isDoubleStream, bool tcpOrQuic);
     void Metrics();
-    void CwndTracer(uint32_t oldval, uint32_t newval);
+    void CwndTracerA1(uint32_t oldval, uint32_t newval);
     void RegisterTcpCwnd();
     void AdvancePosition(int stepsTime);
 
@@ -55,7 +55,7 @@ NodeStatistics::NodeStatistics(NodeContainer nodes, std::string flowName, bool i
     this->nodes = nodes;
     this->flowName = flowName;
     monitor = fh.Install(this->nodes);
-    this->cwndAccumulate = 0;
+    this->cwnd1 = 0;
 
     if(tcpOrQuic == 0){ //TCP NODES: 0,1,4,5,10
         Simulator::Schedule(Seconds(2), &NodeStatistics::RegisterTcpCwnd, this);
@@ -64,11 +64,11 @@ NodeStatistics::NodeStatistics(NodeContainer nodes, std::string flowName, bool i
 }
 
 void NodeStatistics::RegisterTcpCwnd(){
-    Config::ConnectWithoutContext ("/NodeList/0/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracer, this));
-    Config::ConnectWithoutContext ("/NodeList/1/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracer, this));
-    Config::ConnectWithoutContext ("/NodeList/4/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracer, this));
-    Config::ConnectWithoutContext ("/NodeList/5/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracer, this));
-    Config::ConnectWithoutContext ("/NodeList/10/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracer, this));
+    Config::ConnectWithoutContext ("/NodeList/0/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracerA1, this));
+    Config::ConnectWithoutContext ("/NodeList/1/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracerA1, this));
+    Config::ConnectWithoutContext ("/NodeList/4/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracerA1, this));
+    Config::ConnectWithoutContext ("/NodeList/5/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracerA1, this));
+    Config::ConnectWithoutContext ("/NodeList/10/$ns3::TcpL4Protocol/SocketList/0/CongestionWindow", MakeCallback (&NodeStatistics::CwndTracerA1, this));
 }
 
 void NodeStatistics::AdvancePosition(int stepsTime){
@@ -113,14 +113,14 @@ void NodeStatistics::Metrics(){
                       << del/flowNum << "|sen:" //delay_mils
                       << sen/flowNum << "|rcv:" //packet sent
                       << rcv/flowNum << "|cwnd:" //packet receive
-                      << this->cwndAccumulate/5 << "|" //packet receive
+                      << this->cwnd1 /5 << "|" //packet receive
     );
     this->monitor->ResetAllStats();
 }
 
 void
-NodeStatistics::CwndTracer(uint32_t oldval, uint32_t newval){
-    this->cwndAccumulate = newval;
+NodeStatistics::CwndTracerA1(uint32_t oldval, uint32_t newval){
+    this->cwnd1 = newval;
 }
 
 int main(){

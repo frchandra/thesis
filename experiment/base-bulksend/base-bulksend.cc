@@ -152,7 +152,7 @@ int main(){
     LogComponentEnable("BaseOnoff", LOG_LEVEL_INFO);
 
     std::string transport_prot = "ns3::TcpNewReno";
-    int nQuic = 1;
+    int nQuic = 0;
     int nTcp = 1;
     int steps = 5;
     int initPos = 1;
